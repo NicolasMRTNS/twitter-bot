@@ -1,6 +1,5 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-require('dotenv').config();
 const { Configuration, OpenAIApi } = require('openai');
 
 admin.initializeApp();
@@ -9,15 +8,15 @@ const dbRef = admin.firestore().doc('tokens/demo');
 
 const twitterApi = require('twitter-api-v2').default;
 const twitterClient = new twitterApi({
-  clientId: process.env.CLIENT_ID,
-  clientSecret: process.env.CLIENT_SECRET
+  clientId: functions.config().twitter.id,
+  clientSecret: functions.config().twitter.secret
 });
 
-const callbackUrl = 'http://127.0.0.1:5000/twitter-bot-e52b4/us-central1/callback';
+const callbackUrl = functions.config().serv.callbackurl;
 
 const configuration = new Configuration({
-  organization: process.env.OPENAI_ORG,
-  apiKey: process.env.OPENAI_KEY
+  organization: functions.config().openai.org,
+  apiKey: functions.config().openai.key
 });
 
 const openai = new OpenAIApi(configuration);
@@ -71,4 +70,10 @@ exports.tweet = functions.https.onRequest(async (_request, response) => {
   const { data } = await refreshedClient.v2.tweet(nextTweet.data.choices[0].text);
 
   response.send(data);
+});
+
+exports.scheduleJobs = functions.pubsub.schedule('every 3 hours').onRun(async () => {
+  await this.auth();
+  await this.callback();
+  await this.tweet();
 });
